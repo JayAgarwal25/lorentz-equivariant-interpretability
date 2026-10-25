@@ -30,7 +30,6 @@ Usage:
       > logs/equivariance_part.log 2>&1 &
 """
 
-import os
 import argparse
 import sys
 import time
@@ -42,9 +41,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 sys.path.insert(0, ".")
-sys.path.insert(0, os.environ.get("LLOCA_EXPERIMENTS_ROOT", "path/to/lloca-experiments"))
-from omegaconf import OmegaConf, open_dict
-from hydra.utils import instantiate
+from networks.example_ParticleTransformer import ParticleTransformerWrapper
 
 N_LAYERS  = 9    # L0 = after embed, L1..L8 = after each of 8 main blocks
 N_BLOCKS  = 8
@@ -132,17 +129,46 @@ def rel_err(a, b, eps=EPS):
 
 # ── Model loading ─────────────────────────────────────────────────────────────
 
-def load_model(config_path, checkpoint, device):
-    cfg = OmegaConf.load(config_path)
-    with open_dict(cfg):
-        cfg.model.net.compile = False
-    model = instantiate(cfg.model)
-    state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+def _normalise_checkpoint_state(state):
     if isinstance(state, dict) and "model" in state:
         state = state["model"]
+    converted = {}
+    for key, value in state.items():
+        if key.startswith("trafo_fourmomenta.") or ".attention.transform." in key:
+            continue
+        if key.startswith("net."):
+            key = "mod." + key[4:]
+        key = key.replace(".attn.in_proj.weight", ".attn.in_proj_weight")
+        key = key.replace(".attn.in_proj.bias", ".attn.in_proj_bias")
+        converted[key] = value
+    return converted
+
+
+def load_model(checkpoint, device):
+    state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    state = _normalise_checkpoint_state(state)
+    num_classes = int(state["mod.fc.0.weight"].shape[0])
+    cfg = dict(
+        input_dim=7,
+        num_classes=num_classes,
+        pair_input_dim=4,
+        use_pre_activation_pair=False,
+        embed_dims=[128, 512, 128],
+        pair_embed_dims=[64, 64, 64],
+        num_heads=NUM_HEADS,
+        num_layers=N_BLOCKS,
+        num_cls_layers=2,
+        block_params=None,
+        cls_block_params={"dropout": 0, "attn_dropout": 0, "activation_dropout": 0},
+        fc_params=[],
+        activation="gelu",
+        trim=True,
+        for_inference=False,
+    )
+    model = ParticleTransformerWrapper(**cfg)
     model.load_state_dict(state)
     model.to(device).eval()
-    print(f"Loaded model ({sum(p.numel() for p in model.parameters()):,} params)")
+    print(f"Loaded model ({sum(p.numel() for p in model.parameters()):,} params, num_classes={num_classes})")
     return model
 
 
@@ -204,8 +230,8 @@ def run_part(model, features_t, points_t, vectors_t, mask_t, device):
         return hook
 
     hooks = []
-    hooks.append(model.net.embed.register_forward_hook(_make_hook(0)))
-    for bi, blk in enumerate(model.net.blocks):
+    hooks.append(model.mod.embed.register_forward_hook(_make_hook(0)))
+    for bi, blk in enumerate(model.mod.blocks):
         hooks.append(blk.register_forward_hook(_make_hook(bi + 1)))
 
     with torch.no_grad():
@@ -226,7 +252,7 @@ def run_part(model, features_t, points_t, vectors_t, mask_t, device):
             # (P, 1, 128) → (P, 128)
             hs_list.append(t.squeeze(1).numpy().astype(np.float32))
 
-    logit = float(out[0, 1].cpu())
+    logit = float(out.squeeze().cpu()) if out.shape[-1] == 1 else float(out[0, 1].cpu())
     return hs_list, logit
 
 
@@ -436,17 +462,14 @@ def main():
         "20260418-194812_example_ParticleTransformer_ranger_lr0.001_batch512/"
         "net_best_epoch_state.pt"
     )
-    ap.add_argument("--config",       default=None,
-                    help="Path to lloca-experiments config_0.yaml for the seed checkpoint.")
     ap.add_argument("--checkpoint",   default=ckpt_default)
     ap.add_argument("--data-path",    default="data/toptagging_full.npz")
     ap.add_argument("--output-dir",   default="results/equivariance_part")
     ap.add_argument("--n-jets",       type=int, default=200)
     ap.add_argument("--n-transforms", type=int, default=5)
     ap.add_argument("--n-jets-sweep", type=int, default=50)
-    ap.add_argument("--gammas", type=float, nargs="+",
-                    default=[1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0],
-                    help="Lorentz boost factors for the pure-boost sweep")
+    ap.add_argument("--gammas",       type=float, nargs="+",
+                    default=[1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0])
     ap.add_argument("--seed",         type=int, default=42)
     args = ap.parse_args()
 
@@ -460,7 +483,7 @@ def main():
     print(f"Device: {device}")
     print(f"n_jets={args.n_jets}  n_transforms={args.n_transforms}  seed={args.seed}")
 
-    model = load_model(args.config, args.checkpoint, device)
+    model = load_model(args.checkpoint, device)
 
     print(f"\nLoading {args.data_path} ...")
     npz  = np.load(args.data_path)

@@ -13,6 +13,15 @@ Vanilla-T and ParT) with equivariance tests, linear probes on the scalar channel
 geometric-algebra-invariant probes on the multivector channels, grade ablations, attention maps and
 CKA, three training seeds each.
 
+> **Note:** This is a cleanup of our original code using Claude. We didn't release the code initially
+> since our original code was a bit messy and divided into multiple repos and servers. So, this code
+> may contain some errors and is not end-to-end reproducible. We are working on that along with a
+> small revision of the paper improving the readability and adding some details. Our goal with this
+> release is to provide all the scripts we used for our analysis, since that might be useful for
+> someone trying to interpret their own model.
+>
+> For any queries, please contact us at jay25official@gmail.com.
+
 ## Layout
 
 - `src/lgatr`, `src/lgatr_slim`, `src/transformer` (Vanilla-T and LLoCa-T), `src/part`: extraction
