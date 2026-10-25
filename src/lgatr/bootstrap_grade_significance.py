@@ -80,8 +80,6 @@ def analyse_lgatr(scores_path, output_dir, n_bootstrap, seed):
     baseline = d["baseline"].astype(np.float32)
     n_jets   = len(labels)
 
-    n_pos = int(labels.sum())
-    n_neg = n_jets - n_pos
     base_auc = float(roc_auc_score(labels, baseline))
 
     print(f"\n{'='*65}")
@@ -323,8 +321,6 @@ def analyse_lgatr_workshop(scores_path, output_dir, n_bootstrap, seed, label="L-
     baseline = d["baseline"].astype(np.float32)
     n_jets   = len(labels)
 
-    n_pos = int(labels.sum())
-    n_neg = n_jets - n_pos
     base_auc = float(roc_auc_score(labels, baseline))
 
     print(f"\n{'='*65}")

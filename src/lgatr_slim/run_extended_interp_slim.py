@@ -266,7 +266,6 @@ def main(args):
                     continue
 
                 # N_total = TOKEN_OFFSET + n_phys
-                n_total = TOKEN_OFFSET + n_phys
 
                 # ── CKA: global-token h_s at each layer ───────────────────────
                 if not args.only_attn and n_cka < args.n_cka:

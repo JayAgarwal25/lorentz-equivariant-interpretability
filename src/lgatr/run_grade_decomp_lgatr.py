@@ -323,7 +323,6 @@ def plot_full_network(baseline_auc, grade_aucs, keep_only_aucs, interventions, n
     names = _names(interventions)
     colors = _colors(interventions)
     x = np.arange(len(interventions))
-    width = 0.35
 
     fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 

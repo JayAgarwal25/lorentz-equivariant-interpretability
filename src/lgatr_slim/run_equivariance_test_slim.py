@@ -45,7 +45,7 @@ def _rho_from_u(u):
 
 
 def sample_lorentz_transform(rng=None):
-    from gatr.utils.clifford import sample_pin_multivector, np_to_mv
+    from gatr.utils.clifford import sample_pin_multivector
     if rng is None:
         rng = np.random.default_rng()
     u = sample_pin_multivector(spin=True, rng=rng)
@@ -301,7 +301,7 @@ def write_summary(err_s, err_v, err_naive, logit_errs,
 
     lines += [
         "",
-        f"Output-level logit invariance: |logit(Λx) - logit(x)| / |logit(x)|",
+        "Output-level logit invariance: |logit(Λx) - logit(x)| / |logit(x)|",
         f"  Mean over {n_jets} jets × {n_tr} transforms: {logit_errs.mean():.2e}",
         "",
         "Boost sweep — pure boosts, mean error across all layers:",

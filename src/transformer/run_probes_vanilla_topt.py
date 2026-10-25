@@ -109,7 +109,6 @@ def extract(model, cfg, loader, n_jets, output_path, device):
                 )
                 embedding["num_graphs"] = batch_dev.ptr.shape[0] - 1
                 # ptr in embedding has been modified by embed_tagging_data (may add spurions/padding)
-                ptr_net = embedding["ptr"].clone().cpu()
 
                 h_batch.clear()
                 model(embedding)
@@ -129,7 +128,6 @@ def extract(model, cfg, loader, n_jets, output_path, device):
                     # h_batch is indexed by ptr_raw (spurions already stripped by wrapper)
                     part_start = raw_start
                     part_end   = raw_end
-                    n_net      = n_phys
 
                     p4_full = fourmomenta_cpu[raw_start:raw_end]  # (n_phys, 4): E,px,py,pz
                     n_use   = min(n_phys, K_MAX)
@@ -186,11 +184,11 @@ def extract(model, cfg, loader, n_jets, output_path, device):
     print(f"\nDone. Total jets: {jet_count}")
 
     # Check buffer consistency
-    print(f"\nBuffer lengths per layer (jet_reps):")
+    print("\nBuffer lengths per layer (jet_reps):")
     for li in range(n_layers):
         print(f"  L{li}: {len(jet_reps_buf[li])} jets")
 
-    print(f"\nStacking...")
+    print("\nStacking...")
     jet_reps  = np.stack([np.stack(jet_reps_buf[li])   for li in range(n_layers)])
     part_reps = np.stack([np.vstack(part_reps_buf[li]) for li in range(n_layers)])
 
