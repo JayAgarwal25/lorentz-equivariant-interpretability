@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Per-layer equivariance test for L-GATr under random Lorentz transforms and a boost sweep.
 
-The transform is applied to the embedded multivectors of every token, particles and spurions;
-the scalar inputs are left unchanged. Records the relative change of h_s, of h_mv against
+The transform is applied to the four-momenta of every token, particles and spurions; the
+tagging features are left unchanged. Records the relative change of h_s, of h_mv against
 rho(Lambda) h_mv, of h_mv against no transform (naive), and of the output logit.
 
-    cd path/to/lorentz-gatr    # its experiments package provides embed_tagging_data_into_ga
-    python path/to/src/lgatr/run_equivariance_test.py --lgatr-checkpoint $RUNS/topt_lgatr/seed1001/models/model_run0.pt \\
+    python src/lgatr/run_equivariance_test.py --lgatr-checkpoint $RUNS/topt_lgatr/seed1001/models/model_run0.pt \\
         --lgatr-config $RUNS/topt_lgatr/seed1001/config_0.yaml --data-path $DATA \\
         --n-jets 200 --n-transforms 5 --n-jets-sweep 50 --seed 1001 \\
         --output-dir results/equivariance_gamma5/lgatr/seed1001
@@ -27,7 +26,7 @@ from torch_geometric.loader import DataLoader
 sys.path.insert(0, ".")
 
 from experiments.tagging.dataset import TopTaggingDataset
-from experiments.tagging.embedding import embed_tagging_data_into_ga
+from experiments.tagging.embedding import embed_tagging_data
 
 NUM_LAYERS = 13
 EPS = 1e-8
@@ -157,32 +156,35 @@ def rel_err(a, b, eps=EPS):
 def load_lgatr(checkpoint_path, config_path, device):
     from hydra.utils import instantiate
     cfg = OmegaConf.load(config_path)
-    cfg.model.net.in_s_channels = 1
-    cfg.data.add_scalar_features = False
-    if "include_global_token" not in cfg.data:
-        if "num_global_tokens" in cfg.data:
-            cfg.data.include_global_token = (cfg.data.num_global_tokens > 0)
-        else:
-            cfg.data.include_global_token = True  # LGATr always has a global token
+    if "compile" in cfg.model.net:
+        cfg.model.net.compile = False
     model = instantiate(cfg.model)
-    ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-    model.load_state_dict(ckpt["model"])
+    state = torch.load(checkpoint_path, map_location="cpu", weights_only=False)["model"]
+    model.load_state_dict({k.replace("net.module.", "net.", 1): v for k, v in state.items()})
     model.to(device).eval()
     return model, cfg
 
 
 def embed_lgatr_jet(p4_np, cfg, device):
-    """Create the full embedding (particles + spurions + global token) for one jet."""
+    """Embed one jet as in training: particles, beam and time spurions, tagging features."""
+    dtype = torch.float64 if cfg.data.momentum_float64 else torch.float32
     n_phys = len(p4_np)
-    x   = torch.tensor(p4_np, dtype=torch.float32, device=device)
+    x   = torch.tensor(p4_np, dtype=dtype, device=device)
     s   = torch.zeros(n_phys, 0, dtype=torch.float32, device=device)
     ptr = torch.tensor([0, n_phys], dtype=torch.long, device=device)
-    return embed_tagging_data_into_ga(x, s, ptr, cfg.data)
+    emb = embed_tagging_data(x, s, ptr, cfg.data)
+    emb["num_graphs"] = 1
+    return emb
+
+
+def clone_embedding(emb):
+    """Clone the tensors, because LGATrWrapper rescales the four-momenta in place."""
+    return {k: v.clone() if torch.is_tensor(v) else v for k, v in emb.items()}
 
 
 def run_lgatr_emb(model, emb):
     """
-    Run a pre-built embedding through full LGATr with hooks.
+    Run an embedding through L-GATr with hooks.
     Returns:
       hs_list  : list of NUM_LAYERS numpy arrays, each (n_tokens, s_ch)
       hmv_list : list of NUM_LAYERS numpy arrays, each (n_tokens, mv_ch, 16)
@@ -204,7 +206,7 @@ def run_lgatr_emb(model, emb):
         hooks.append(blk.register_forward_hook(_make_hook(li + 1)))
 
     with torch.no_grad():
-        out = model(emb)
+        out = model(clone_embedding(emb))[0]
     for h in hooks:
         h.remove()
 
@@ -214,15 +216,13 @@ def run_lgatr_emb(model, emb):
 
 def apply_rho_to_embedding(emb, rho_16_t, device):
     """
-    Return a copy of emb with multivectors transformed by rho_16.
-    emb["mv"] has shape (n_tokens, n_mv_ch, 16).
-    rho_16_t: torch.float32 tensor (16, 16) on device.
-    Applies ρ(Λ) to every multivector channel of every token:
-      mv_new[..., j] = Σ_i mv[..., i] * rho_16[i, j]  →  mv @ rho_16
-    Scalars are Lorentz-invariant and left unchanged.
+    Return a copy of emb with the four-momenta of every token (particles and spurions)
+    transformed by the vector block of rho_16, p' = p @ Lambda. The tagging features are
+    left unchanged.
     """
-    emb_boost = {k: v for k, v in emb.items()}  # shallow copy
-    emb_boost["mv"] = emb["mv"] @ rho_16_t       # (..., 16) @ (16,16)
+    emb_boost = clone_embedding(emb)
+    lam = rho_16_t[1:5, 1:5].to(emb_boost["fourmomenta"].dtype)
+    emb_boost["fourmomenta"] = emb_boost["fourmomenta"] @ lam
     return emb_boost
 
 
@@ -352,7 +352,7 @@ def plot_equivariance(err_s, err_mv_or_v, label_mv, title, save_path):
 
     fig, ax = plt.subplots(figsize=(12, 5))
     ax.semilogy(layers, mean_s,  "b-o",  linewidth=2, markersize=5,
-                label=f"h_s invariance")
+                label="h_s invariance")
     ax.fill_between(layers, np.maximum(mean_s - std_s, 1e-9), mean_s + std_s,
                     alpha=0.2, color="blue")
     ax.semilogy(layers, mean_mv, "r-s",  linewidth=2, markersize=5,
@@ -431,7 +431,7 @@ def write_summary(lgatr_s, lgatr_mv, lgatr_naive, logit_errs,
     mean_logit = logit_errs.mean()
     lines += [
         "",
-        f"Output-level logit invariance: |logit(Λx) - logit(x)| / |logit(x)|",
+        "Output-level logit invariance: |logit(Λx) - logit(x)| / |logit(x)|",
         f"  Mean over {n_jets} jets × {n_tr} transforms: {mean_logit:.2e}",
         "",
         "Boost sweep — pure boosts with increasing γ (mean error across all layers):",
@@ -478,7 +478,7 @@ def main():
     print(f"Device: {device}")
     print(f"n_jets={args.n_jets}  n_transforms={args.n_transforms}")
 
-    ds = TopTaggingDataset(rescale_data=True)
+    ds = TopTaggingDataset()
     ds.load_data(args.data_path, mode="test")
 
     t_total = time.time()

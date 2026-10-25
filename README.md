@@ -38,10 +38,9 @@ export DATA=data/toptagging_full.npz
 python scripts/get_data.py                     # downloads $DATA, 1.5 GB
 ```
 
-Three scripts run from another folder, as in our runs: `src/part/run_probes_part_topt.py` and
+Two scripts run from another folder, as in our runs: `src/part/run_probes_part_topt.py` and
 `src/part/run_equivariance_test_part.py` from [particle_transformer](https://github.com/jet-universe/particle_transformer)
-(they also need [weaver](https://github.com/hqucms/weaver-core)), and
-`src/lgatr/run_equivariance_test.py` from lorentz-gatr.
+(they also need [weaver](https://github.com/hqucms/weaver-core)).
 The scripts load and run the models with Python 3.10, torch 2.11, lgatr 1.4.3, lloca 1.3.5, xformers 0.0.35,
 torch-geometric 2.7, hydra-core 1.3, scikit-learn 1.7, clifford 1.5 and matplotlib 3.10. Each
 script's docstring gives the command and the arguments the paper used.
