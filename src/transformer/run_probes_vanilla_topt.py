@@ -1,29 +1,14 @@
 #!/usr/bin/env python3
-"""
-Extract per-layer representations from Transformer-style TopTagging models for linear probing.
+"""Extract per-layer representations of Vanilla-T or LLoCa-T and the physics labels for linear probes.
 
-Architecture:
-  TransformerWrapper → lloca.backbone.transformer.Transformer
-  linear_in + all model.net.blocks → hook points L0..L{n_blocks}
-  mean_aggregation=True → no global token; jet rep = mean pool over physical particles
-  Spurions are stripped before model.net — model sees ONLY physical particles, no spurions
-  Block output: plain tensor (n_particles, hidden_dim), NOT a (h_mv, h_s) tuple
+Hooks model.net.linear_in (layer 0) and every block (layers 1-12). The backbone sees only the
+particles, so the jet-level representation is the mean over particle tokens. --truncate-particles
+sets how many leading particles per jet are stored for the particle targets.
 
-Hook targets:
-  Layer 0: model.net.linear_in  → output tensor (n_tokens, hidden_dim)
-  Layer 1-10: model.net.blocks[i] → output tensor (n_tokens, hidden_dim)
-
-Jet-level rep: mean over particle tokens [ptr[i]:ptr[i+1]] (no global token)
-Particle-level rep: each physical particle token directly (no offset needed)
-
-Usage (from lloca-experiments root):
-  CUDA_VISIBLE_DEVICES=0 nohup python3.10 run_probes_vanilla_topt.py \\
-      --config runs/vanilla_transformer_topt/Transformer_3909/config_0.yaml \\
-      --checkpoint runs/vanilla_transformer_topt/Transformer_3909/models/model_run0.pt \\
-      --data-path ../lorentz-gatr/data/toptagging_full.npz \\
-      --output results/probe_data_vanilla_topt.npz \\
-      --n-jets 10000 --truncate-particles 50 \\
-      > results/probe_vanilla_topt.log 2>&1 &
+    python src/transformer/run_probes_vanilla_topt.py --checkpoint $RUNS/topt_vanilla_transformer/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_vanilla_transformer/seed1001/config.yaml --data-path $DATA \\
+        --n-jets 10000 --truncate-particles 50 --batch-size 64 \\
+        --output results/probes/vanilla_transformer/seed1001/probe_data_vanilla_transformer.npz
 """
 
 import argparse
@@ -40,7 +25,6 @@ sys.path.insert(0, ".")
 from experiments.tagging.dataset import TopTaggingDataset
 from experiments.tagging.embedding import embed_tagging_data
 
-N_LAYERS = None # Filled from the checkpoint config; current LLoCa configs use 12 blocks.
 K_MAX = 50      # max particles per jet to store
 # TOKEN_OFFSET = 0: TransformerWrapper strips spurions before calling model.net,
 # so h_batch is indexed by ptr_raw (physical particles only, no spurions in h_batch).
@@ -242,7 +226,7 @@ def extract(model, cfg, loader, n_jets, output_path, device):
     return data
 
 
-# ── Physics helpers (copied from run_probes_jetclass.py) ─────────────────────
+# ── Physics helpers ─────────────────────
 
 def _pt(p4):
     return np.sqrt(p4[:, 1]**2 + p4[:, 2]**2)
@@ -332,11 +316,11 @@ def _nsubjettiness(p4, R=0.8):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config",
-        default="runs/vanilla_transformer_topt/Transformer_3909/config_0.yaml")
+        required=True)
     ap.add_argument("--checkpoint",
-        default="runs/vanilla_transformer_topt/Transformer_3909/models/model_run0.pt")
+        required=True)
     ap.add_argument("--data-path",
-        default="../lorentz-gatr/data/toptagging_full.npz")
+        default="data/toptagging_full.npz")
     ap.add_argument("--output",
         default="results/probe_data_vanilla_topt.npz")
     ap.add_argument("--n-jets",      type=int, default=10000)

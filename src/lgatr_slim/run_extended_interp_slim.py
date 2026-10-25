@@ -1,31 +1,12 @@
 #!/usr/bin/env python3
-"""
-Extended interpretation for LGATr-slim on TopTagging test set.
+"""Attention maps, spurion attention, pT-rank attention and layer CKA for L-GATr-slim.
 
-Computes three analyses from per-jet forward passes:
-  1. CKA similarity matrix (13×13, layers 0..12) — linear CKA between global-token
-     scalar representations at every layer.
-  2. Spurion attention — mean attention weight from physical particles to each
-     special token [Global, Llike+z, Llike-z, Time-spur], compared Top vs QCD.
-  3. pT-rank attention — mean attention weight received by each pT rank (0=highest),
-     compared Top vs QCD.
+Token layout after the wrapper: global token (0), beam +z, beam -z, time spurion (1-3),
+particles (4 onwards). CKA uses the global-token h_s of --n-cka jets.
 
-Token layout inside model.net (LGATrSlimWrapper inserts global token at 0):
-  [global(0), llike+z(1), llike-z(2), time-spur(3), phys_0(4), phys_1(5), ...]
-  → TOKEN_OFFSET=4, N_SPECIAL=4
-
-Output (--output-dir, default results/extended_interp/):
-  cka_slim.npy / cka_slim.png
-  spurion_attn_slim.npz / spurion_attn_slim.png
-  ptrank_attn_slim.npz  / ptrank_attn_slim.png
-
-Usage:
-  cd path/to/tagger-quantization
-  CUDA_VISIBLE_DEVICES=1 nohup python3.10 -u run_extended_interp_slim.py \\
-    --checkpoint runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt \\
-    --config runs/lgatr_slim_toptag/slim_run1/config.yaml \\
-    --data-path data/toptagging_full.npz \\
-    > results/extended_interp_slim.log 2>&1 &
+    python src/lgatr_slim/run_extended_interp_slim.py --checkpoint $RUNS/topt_lgatr_slim/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr_slim/seed1001/config.yaml --data-path $DATA --n-jets 10000 \\
+        --output-dir results/interp/lgatr_slim/seed1001
 """
 
 import argparse
@@ -164,7 +145,7 @@ def plot_ptrank(top_list, qcd_list, title, save_path):
 
 
 def plot_averaged_attention_grid(avg_attn, n_events, label="", title_prefix="L-GATr-slim", save_path=None):
-    """IAFormer Figure 4 style: one heatmap per attention head, averaged over n_events jets."""
+    """One heatmap per attention head, averaged over n_events jets."""
     num_heads = avg_attn.shape[0]
     ncols = 4
     nrows = (num_heads + ncols - 1) // ncols
@@ -414,8 +395,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(
         description="LGATr-slim extended interpretation: CKA, spurion, pT-rank, avg attention"
     )
-    ap.add_argument("--checkpoint", default="runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt")
-    ap.add_argument("--config",     default="runs/lgatr_slim_toptag/slim_run1/config.yaml")
+    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--config",     required=True)
     ap.add_argument("--data-path",  default="data/toptagging_full.npz")
     ap.add_argument("--output-dir", default="results/extended_interp")
     ap.add_argument("--n-jets",     type=int, default=10000,

@@ -1,48 +1,14 @@
 #!/usr/bin/env python3
-"""
-Grade decomposition ablation for LGATr-slim on TopTagging.
+"""Channel ablations on L-GATr-slim: zero its vector or scalar channels, or single Minkowski components of the vectors.
 
-LGATr-slim's hidden representations have two types of channels at each layer:
-  h_v  (1, n_tokens, 32, 4)  —  32 channels of grade-1 Lorentz 4-vectors
-  h_s  (1, n_tokens, 96)     —  96 Lorentz-invariant scalar channels
+Interventions: zero_v (all h_v), zero_s (all h_s), zero_t, zero_z, zero_transverse (x, y),
+zero_spatial (x, y, z). --mode full applies them at all layers, --mode layer one layer at a time.
+With --save-scores the per-jet logits go to grade_decomp_slim_scores.npz.
 
-Unlike the full LGATr which has all 5 grades (0–4) in h_mv, slim is
-CONSTRAINED to grade-1 vectors + grade-0 scalars. This experiment asks:
-
-  1. Which of the two channel types is load-bearing?
-       zero_v: zero ALL h_v (only h_s drives predictions)
-       zero_s: zero ALL h_s (only h_v drives predictions)
-
-  2. Within h_v, which Minkowski component matters?
-     The 4 components of each grade-1 vector (t, x, y, z) in Minkowski space:
-       zero_t:          zero h_v[..., 0]     — energy/timelike
-       zero_z:          zero h_v[..., 3]     — beam-axis/longitudinal
-       zero_transverse: zero h_v[..., 1:3]   — transverse plane (px, py)
-       zero_spatial:    zero h_v[..., 1:]    — all 3-momentum components
-
-Note on frame-dependence: individual Minkowski components (t,x,y,z) are
-frame-dependent. All jets are in the lab frame (or consistent boosted frame),
-so the results are empirically meaningful even though not Lorentz-invariant.
-
-Comparison with full LGATr:
-  Full LGATr grade-2 (bivectors) ΔAUC = 0.363 — hugely important
-  Slim has no grade-2 at all; this experiment quantifies what slim substitutes.
-
-Outputs (--output-dir, default results/grade_decomp_slim/):
-  grade_decomp_slim.npz       all AUC values
-  grade_decomp_slim_full.png  bar chart: ΔAUC per ablation (full-network)
-  grade_decomp_slim_layer.png heatmap: ΔAUC per (ablation × layer) for zero_v / zero_s
-  grade_decomp_slim_summary.txt
-
-Usage:
-  cd path/to/tagger-quantization
-  CUDA_VISIBLE_DEVICES=1 nohup python3.10 -u run_grade_decomp_slim.py \\
-      --checkpoint runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt \\
-      --config     runs/lgatr_slim_toptag/slim_run1/config.yaml \\
-      --data-path  data/toptagging_full.npz \\
-      --mode       all \\
-      --n-jets     10000 \\
-      > results/grade_decomp_slim.log 2>&1 &
+    python src/lgatr_slim/run_grade_decomp_slim.py --checkpoint $RUNS/topt_lgatr_slim/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr_slim/seed1001/config.yaml --data-path $DATA --n-jets 10000 --batch-size 64 \\
+        --mode full --save-scores --output-dir results/ablations/lgatr_slim/seed1001
+    python src/lgatr_slim/run_grade_decomp_slim.py ... --mode layer --output-dir results/ablations/lgatr_slim_layer/seed1001
 """
 
 import argparse
@@ -341,8 +307,8 @@ def write_summary(baseline_auc, abl_aucs, layer_aucs, n_jets, save_path):
 
 def main():
     ap = argparse.ArgumentParser(description="LGATr-slim channel ablation on TopTagging")
-    ap.add_argument("--checkpoint", default="runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt")
-    ap.add_argument("--config",     default="runs/lgatr_slim_toptag/slim_run1/config.yaml")
+    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--config",     required=True)
     ap.add_argument("--data-path",  default="data/toptagging_full.npz")
     ap.add_argument("--output-dir", default="results/grade_decomp_slim")
     ap.add_argument("--mode", choices=["full", "layer", "all"], default="all")

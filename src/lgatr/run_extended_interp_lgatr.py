@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""
-Extended interpretation for full LGATr on TopTagging test set.
+"""Attention maps, spurion attention, pT-rank attention and layer CKA for L-GATr.
 
-Token layout inside model.net (LGATrWrapper inserts global token at 0):
-  [global(0), llike+z(1), llike-z(2), time-spur(3), phys_0(4), phys_1(5), ...]
-  → TOKEN_OFFSET=4, N_SPECIAL=4
+Token layout after the wrapper: global token (0), beam +z, beam -z, time spurion (1-3),
+particles (4 onwards). CKA uses the global-token h_s of --n-cka jets.
 
-Output (--output-dir):
-  cka_lgatr.npy / cka_lgatr.png
-  spurion_attn_lgatr.npz / spurion_attn_lgatr.png
-  ptrank_attn_lgatr.npz  / ptrank_attn_lgatr.png
+    python src/lgatr/run_extended_interp_lgatr.py --checkpoint $RUNS/topt_lgatr/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr/seed1001/config.yaml --data-path $DATA --n-jets 10000 \\
+        --output-dir results/interp/lgatr/seed1001
 """
 
 import argparse
@@ -146,7 +143,7 @@ def plot_ptrank(top_list, qcd_list, title, save_path):
 
 
 def plot_averaged_attention_grid(avg_attn, n_events, label="", title_prefix="L-GATr", save_path=None):
-    """IAFormer Figure 4 style: one heatmap per attention head, averaged over n_events jets."""
+    """One heatmap per attention head, averaged over n_events jets."""
     num_heads = avg_attn.shape[0]
     ncols = 4
     nrows = (num_heads + ncols - 1) // ncols

@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Bootstrap uncertainty for saved equivariance-error NPZ files.
+"""Bootstrap any saved equivariance-error file by resampling jets on axis 0.
 
-This is model-agnostic: any numeric array with shape
-  (n_jets, n_transforms, ...)
-or
-  (n_jets, ...)
-can be bootstrapped by resampling jets on axis 0.
+    python src/uncertainty/bootstrap_equivariance_npz.py --input results/equivariance/lgatr/seed1001/equivariance_errors.npz \\
+        --output-dir results/equivariance/lgatr/seed1001/bootstrap --n-bootstrap 1000
 """
 
 import argparse

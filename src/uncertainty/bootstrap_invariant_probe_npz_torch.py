@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""GPU bootstrap for L-GATr MV invariant probes.
+"""Bootstrap the jet-level invariant probes of L-GATr on the GPU (Ridge alpha = 10, logistic C = 0.1).
 
-Mirrors bootstrap_invariant_probe_npz.py but uses torch/GPU for Ridge and LBFGS
-logistic regression instead of sklearn. Same output format.
-
-Input NPZs:
-  --invariants   probe_data_lgatr_mv_invariants.npz   (jet_inv: L x N x 832)
-  --targets      probe_data_lgatr.npz                 (jet labels/targets)
+    python src/uncertainty/bootstrap_invariant_probe_npz_torch.py \\
+        --invariants results/probes/lgatr/seed1001/probe_data_lgatr_mv_invariants.npz \\
+        --targets results/probes/lgatr/seed1001/probe_data_lgatr.npz --n-bootstrap 200 --seed 1001 \\
+        --output-dir results/probes/lgatr/seed1001/mv_bootstrap
 """
 
 import argparse

@@ -114,4 +114,4 @@ ax_r.annotate(r"All grades $\to 0$ at L12" + "\n(architectural constraint)",
 fig.tight_layout(pad=0.5, w_pad=1.2)
 fig.savefig(OUT / "figA5c_subgroup_false.pdf", bbox_inches="tight")
 fig.savefig(OUT / "figA5c_subgroup_false.png", dpi=150, bbox_inches="tight")
-print(f"Saved: {OUT}/figA_subgroup_false.{{pdf,png}}")
+print(f"Saved: {OUT}/figA5c_subgroup_false.{{pdf,png}}")

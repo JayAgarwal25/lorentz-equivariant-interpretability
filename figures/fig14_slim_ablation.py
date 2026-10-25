@@ -15,7 +15,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 SEEDS = ["seed1001", "seed1002", "seed1003"]
 
-# order matches abl_names in grade_decomp_slim.npz
+# plotting order; values are looked up by name in grade_decomp_slim.npz
 ABLATIONS = [
     ("zero_v",          r"zero $h_v$",       "#1f77b4"),
     ("zero_s",          r"zero $h_s$",        "#ff7f0e"),
@@ -119,4 +119,4 @@ ax_r.legend(frameon=False, loc="upper center")
 fig.tight_layout(pad=0.5, w_pad=1.2)
 fig.savefig(OUT / "figA5b_slim.pdf", bbox_inches="tight")
 fig.savefig(OUT / "figA5b_slim.png", dpi=150, bbox_inches="tight")
-print(f"Saved: {OUT}/figA_slim.{{pdf,png}}")
+print(f"Saved: {OUT}/figA5b_slim.{{pdf,png}}")

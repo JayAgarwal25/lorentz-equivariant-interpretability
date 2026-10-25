@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Fit linear probes on vanilla transformer representations."""
+"""Fit linear probes on the saved representations of Vanilla-T or LLoCa-T, per layer and target.
+
+    python src/transformer/fit_probes_vanilla.py --train-jets 8000 \\
+        --data results/probes/vanilla_transformer/seed1001/probe_data_vanilla_transformer.npz \\
+        --output results/probes/vanilla_transformer/seed1001/probe_results
+"""
 
 import argparse
 import numpy as np
@@ -121,8 +126,7 @@ def main():
             f"--train-jets must be in [1, {n_jets - 1}] for this file; got {args.train_jets}"
         )
 
-    # Split into train/test using a fixed leading-jet train block to preserve the
-    # existing workshop convention while still allowing smaller smoke tests.
+    # The first --train-jets jets are the training set, the rest the test set.
     n_layers = data['jet_reps'].shape[0]
     train_idx_all = np.arange(args.train_jets)
     test_idx_all = np.arange(args.train_jets, n_jets)

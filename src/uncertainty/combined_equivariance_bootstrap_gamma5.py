@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
-"""Combined bootstrap CI for equivariance_gamma5 results.
+"""Pool the equivariance runs of the three seeds per model and bootstrap them (Fig. 1, Tables 8 to 10).
 
-Pools all jets across 3 seeds per model, bootstraps on GPU, outputs 95% CI.
-No intermediate per-seed bootstrap step required.
+Reads results/equivariance_gamma5/<model>/seed<N>/ and writes
+results/equivariance_gamma5/<model>/combined_bootstrap_ci.npz with keys <array>__median, __lo,
+__hi, __mean, __std, __n_draws and the plain gammas.
 
-Array conventions (per model output NPZ):
-  Regular  : (jets, transforms [, layers]) — jets on axis 0
-  Sweep    : (gammas, jets_sweep, transforms) — jets on axis 1
-  Metadata : (gammas,) 1-D — saved as-is, no bootstrap
-
-Output: equivariance_gamma5/{model}/combined_bootstrap_ci.npz
-  Keys: {orig_key}__median, __lo, __hi, __mean, __std, __n_draws
-        gammas  (plain array, no suffix)
+    python src/uncertainty/combined_equivariance_bootstrap_gamma5.py
 """
 
 from pathlib import Path

@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
-"""LLoCa-specific Lorentz equivariance diagnostic for TopTagging.
+"""Per-layer equivariance test for LLoCa-T under random Lorentz transforms and a boost sweep.
 
-This script tests the canonicalization architecture in a way that is distinct
-from the vanilla Transformer baseline.  The default mode applies the same
-Lorentz transform to the full physical event, including beam/time reference
-spurions, before the model's own preprocessing (`boost_jet`, mass regulator,
-and tagging-feature construction).  This avoids the main pitfall of the old
-vanilla-style script, which transformed only the particle four-momenta and then
-recreated fixed lab-frame spurions.
+In full_event mode the transform is applied to the particles and to the beam and time spurions
+before the model's own preprocessing (jet boost, mass regulator, tagging features). Records the
+relative change of the mean-pooled hidden state per layer and of the output logit.
 
-Saved arrays keep the existing equivariance schema so the shared bootstrap
-script can be used unchanged:
-  err_all     : (jets, transforms, layers)
-  logit_errs  : (jets, transforms)
-  sweep_err   : (gamma, jets, transforms)
-  sweep_logit : (gamma, jets, transforms)
+    python src/transformer/run_equivariance_lloca_topt.py --checkpoint $RUNS/topt_lloca_transformer/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lloca_transformer/seed1001/config_0.yaml --data-path $DATA --mode full_event \\
+        --n-jets 200 --n-transforms 5 --n-jets-sweep 50 --seed 1001 \\
+        --output-dir results/equivariance_gamma5/lloca_transformer_full_event/seed1001
 """
 
 import argparse
@@ -122,7 +116,7 @@ def embed_lloca_jet(p4_np, cfg_data, device, lambda_np=None, mode="full_event"):
         normal LLoCa data preprocessing. This is the architecture-specific
         equivariance test.
       physical_only: transform only particle four-momenta before embedding,
-        recreating fixed spurions. This reproduces the old vanilla-style test.
+        recreating fixed spurions, as in run_equivariance_vanilla_topt.py.
       none: no transform.
     """
     momentum_dtype = torch.float64 if bool(cfg_data.momentum_float64) else torch.float32

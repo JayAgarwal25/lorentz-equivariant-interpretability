@@ -1,31 +1,13 @@
 #!/usr/bin/env python
-"""
-Bootstrap significance testing for grade ablation ΔAUC values.
+"""Per-seed bootstrap confidence intervals and one-sided p-values for grade-ablation AUC drops.
 
-Loads per-jet logits saved by run_grade_decomp.py --save-scores and
-run_grade_decomp_slim.py --save-scores, then computes:
-  - Bootstrap ΔAUC confidence intervals (B=1000, 95% percentile)
-  - One-sided bootstrap p-value: fraction of resamples where ΔAUC ≤ 0
-  - Hanley-McNeil SE as a quick sanity check
+Reads the per-jet logits saved by run_grade_decomp_lgatr.py or run_grade_decomp_slim.py with
+--save-scores. Modes: workshop (grouped L-GATr ablations), all_grades (five separate grades),
+slim (L-GATr-slim channel ablations). The intervals in the paper pool the three seeds with
+src/uncertainty/compute_combined_bootstrap_ci.py.
 
-Plots updated bar charts with ±95% CI error bars.
-
-Prerequisites — run these first (need GPU, ~10 min for LGATr full-network):
-  cd path/to/lorentz-gatr
-  CUDA_VISIBLE_DEVICES=0 venv/bin/python run_grade_decomp.py \\
-      --mode full --n-jets 10000 --save-scores
-
-  cd path/to/tagger-quantization
-  CUDA_VISIBLE_DEVICES=0 python3.10 run_grade_decomp_slim.py \\
-      --mode full --n-jets 10000 --save-scores
-
-Then run this script (CPU only, fast):
-  cd path/to/lorentz-gatr
-  venv/bin/python bootstrap_grade_significance.py \\
-      --lgatr-scores results/grade_decomp/grade_decomp_scores.npz \\
-      --slim-scores  ../tagger-quantization/results/grade_decomp_slim/grade_decomp_slim_scores.npz \\
-      --output results/grade_decomp/ \\
-      --n-bootstrap 1000
+    python src/lgatr/bootstrap_grade_significance.py --scores results/ablations/lgatr/seed1001/grade_decomp_scores.npz \\
+        --mode workshop --label L-GATr --n-bootstrap 1000 --seed 1001 --output results/ablations/lgatr/seed1001
 """
 
 import argparse
@@ -453,15 +435,8 @@ def main():
                     help="all_grades: subgroup_false (G0-G4); workshop: baseline/bivector_false (G0+G4,G1+G3,G2); slim: LGATr-slim")
     ap.add_argument("--output",   required=True, help="Output directory")
     ap.add_argument("--label",    default=None,  help="Model label for plot titles")
-    ap.add_argument("--lgatr-scores", default=None,
-                    help="[legacy] Path to grade_decomp_scores.npz")
-    ap.add_argument("--slim-scores",  default=None,
-                    help="[legacy] Path to grade_decomp_slim_scores.npz")
-    ap.add_argument("--output-legacy", default="results/grade_decomp/", dest="output_legacy")
-    ap.add_argument("--slim-output",  default=None,
-                    help="Output dir for slim plots. Defaults to dirname(--slim-scores).")
     ap.add_argument("--n-bootstrap",  type=int, default=1000,
-                    help="Bootstrap resamples (1000 is standard for publication)")
+                    help="Bootstrap resamples")
     ap.add_argument("--seed",         type=int, default=42)
     args = ap.parse_args()
 

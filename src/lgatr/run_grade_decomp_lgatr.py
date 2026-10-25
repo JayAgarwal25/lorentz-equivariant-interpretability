@@ -1,61 +1,24 @@
 #!/usr/bin/env python3
-"""
-Grade decomposition ablation for full LGATr (GATr_7327) on TopTagging.
+"""Grade ablations on L-GATr: zero or keep one grade group of the hidden h_mv and measure the test AUC.
 
-Each hidden multivector h_mv has shape (..., hidden_mv_channels=16, 16) where the
-last 16 is the Cl(1,3) GA basis, decomposed by grade:
+h_mv components by grade: 0 (index 0), 1 (1-4), 2 (5-10), 3 (11-14), 4 (15). With
+--interventions workshop (the default connected-subgroup model) the groups are G0+G4, G1+G3 and
+G2; with all_grades the five grades are separate (the model trained with
+use_fully_connected_subgroup=False). Ablations act on the hidden outputs of linear_in and every
+block, not on the input embedding.
 
-    Grade 0  (scalar):       index 0         (1 component)   — Lorentz invariants
-    Grade 1  (vector):       indices 1-4     (4 components)  — 4-momenta (what LGATr-slim uses)
-    Grade 2  (bivector):     indices 5-10    (6 components)  — angular-momentum-like tensors
-    Grade 3  (trivector):    indices 11-14   (4 components)  — dual vectors (Hodge-dual of grade 1)
-    Grade 4  (pseudoscalar): index 15        (1 component)   — volume element
+  --mode full    zero one group at all layers, and keep only one group at all layers
+  --mode layer   zero one group at a single layer, for every layer
 
-Three ablation modes
---------------------
-full_network  (--mode full or --mode all)
-    Zero grade g in h_mv at ALL 13 layer outputs simultaneously.
-    6 forward passes (1 baseline + 5 ablations).
-    Answers: "which grades are necessary for the model to function?"
+Outputs: grade_decomp_full.npz, grade_decomp_layer.npz, with --save-scores the per-jet logits
+grade_decomp_scores.npz used by src/uncertainty/compute_combined_bootstrap_ci.py.
 
-keep_only  (--mode full or --mode all, runs alongside full_network)
-    Zero ALL grades EXCEPT grade g at ALL 13 layer outputs.
-    5 forward passes.
-    Answers: "how much can grade g alone achieve?" — directly comparable to LGATr-slim (grade-1 only).
-
-layer_resolved  (--mode layer or --mode all)
-    Zero grade g at the output of a SINGLE layer l; let all other layers run normally.
-    5×13 = 65 forward passes.
-    Answers: "at which depth does each grade become important?"
-
-Both ablations operate on HIDDEN representations (h_mv after each layer),
-NOT on the raw input embedding. This tests which grades the TRAINED network
-actually activates and propagates internally.
-
-LGATr-slim comparison
----------------------
-LGATr-slim uses h_v: (n_tokens, 32, 4) — pure grade-1 Lorentz 4-vectors.
-By zeroing grade 1 in the full model we get a lower bound on what grade 1 alone achieves.
-By zeroing grades 2-4, we measure how much the extra GA structure (unavailable to slim)
-contributes to performance.
-
-Outputs (--output-dir, default results/grade_decomp/):
-    grade_decomp_full.npz        baseline_auc + grade_aucs (5,) + keep_only_aucs (5,)
-    grade_decomp_layer.npz       layer_aucs (5, 13) array + baseline_auc scalar
-    grade_decomp_full.png        bar chart: ΔAUC per grade (ablate vs keep-only)
-    grade_decomp_layer.png       heatmap: ΔAUC per (grade × layer)
-    grade_decomp_summary.txt     human-readable table
-
-Usage
------
-  cd path/to/lorentz-gatr
-  CUDA_VISIBLE_DEVICES=0 nohup venv/bin/python -u run_grade_decomp.py \\
-      --checkpoint results/models/topt_GATr_7327_run0_it200000.pt \\
-      --config     runs/topt/GATr_7327/config.yaml \\
-      --data-path  data/toptagging_full.npz \\
-      --mode       all \\
-      --n-jets     10000 \\
-      > results/grade_decomp.log 2>&1 &
+    python src/lgatr/run_grade_decomp_lgatr.py --checkpoint $RUNS/topt_lgatr/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr/seed1001/config.yaml --data-path $DATA --n-jets 10000 --batch-size 64 \\
+        --mode full --interventions workshop --include-clean-scalar-side-study \\
+        --include-clean-keep-only-side-study --save-scores --output-dir results/ablations/lgatr/seed1001
+    python src/lgatr/run_grade_decomp_lgatr.py ... --mode layer --interventions workshop \\
+        --output-dir results/ablations/lgatr_layer/seed1001
 """
 
 import argparse
@@ -542,8 +505,8 @@ def main():
     ap = argparse.ArgumentParser(
         description="Grade decomposition ablation for L-GATr on TopTagging"
     )
-    ap.add_argument("--checkpoint", default="results/models/topt_GATr_7327_run0_it200000.pt")
-    ap.add_argument("--config",     default="runs/topt/GATr_7327/config.yaml")
+    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--config",     required=True)
     ap.add_argument("--data-path",  default="data/toptagging_full.npz")
     ap.add_argument("--output-dir", default="results/grade_decomp")
     ap.add_argument(
@@ -558,7 +521,7 @@ def main():
         "--interventions", choices=["workshop", "all_grades"], default="workshop",
         help=(
             "workshop: connected-subgroup groups G0+G4, G1+G3, G2; "
-            "all_grades: legacy five-grade sweep, useful as an appendix check"
+            "all_grades: five separate grades, for the model trained with use_fully_connected_subgroup=False"
         ),
     )
     ap.add_argument(

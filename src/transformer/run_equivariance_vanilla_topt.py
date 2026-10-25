@@ -1,29 +1,14 @@
 #!/usr/bin/env python3
-"""
-Per-layer Lorentz-invariance diagnostic for Transformer-style TopTagging models.
+"""Per-layer equivariance test for Vanilla-T under random Lorentz transforms and a boost sweep.
 
-The vanilla transformer is NOT Lorentz-equivariant — it uses coordinates
-(eta, phi, pt) derived from 4-momenta that transform non-trivially under
-general Lorentz boosts.
+The transform is applied to the particle four-momenta of the first 50 particles, and the model's
+preprocessing recomputes its inputs. Records the relative change of the mean-pooled hidden state
+per layer and of the output logit.
 
-Metric (per layer):
-  err[l] = ||h_l(Λx) - h_l(x)||_F / (||h_l(x)||_F + ε)
-  where h_l is the mean-pooled jet representation at layer l.
-
-Hook targets:
-  L0: model.net.linear_in
-  L1..L{n_blocks}: model.net.blocks[i]
-
-Expected: err >> 0 for all layers (model is not Lorentz-invariant).
-
-Usage (from lloca-experiments root):
-  CUDA_VISIBLE_DEVICES=1 nohup python3.10 run_equivariance_vanilla_topt.py \\
-      --config runs/vanilla_transformer_topt/Transformer_3909/config_0.yaml \\
-      --checkpoint runs/vanilla_transformer_topt/Transformer_3909/models/model_run0.pt \\
-      --data-path ../lorentz-gatr/data/toptagging_full.npz \\
-      --output-dir results/equivariance_vanilla_topt/ \\
-      --n-jets 200 --n-transforms 5 \\
-      > results/equivariance_vanilla_topt.log 2>&1 &
+    python src/transformer/run_equivariance_vanilla_topt.py --checkpoint $RUNS/topt_vanilla_transformer/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_vanilla_transformer/seed1001/config_0.yaml --data-path $DATA \\
+        --n-jets 200 --n-transforms 5 --n-jets-sweep 50 --seed 1001 \\
+        --output-dir results/equivariance_gamma5/vanilla_transformer/seed1001
 """
 
 import argparse
@@ -361,10 +346,10 @@ def write_summary(err_all, logit_errs, gammas, sweep_err, sweep_logit,
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config",
-        default="runs/vanilla_transformer_topt/Transformer_3909/config_0.yaml")
+        required=True)
     ap.add_argument("--checkpoint",
-        default="runs/vanilla_transformer_topt/Transformer_3909/models/model_run0.pt")
-    ap.add_argument("--data-path",    default="../lorentz-gatr/data/toptagging_full.npz")
+        required=True)
+    ap.add_argument("--data-path",    default="data/toptagging_full.npz")
     ap.add_argument("--output-dir",   default="results/equivariance_vanilla_topt")
     ap.add_argument("--n-jets",       type=int, default=200)
     ap.add_argument("--n-transforms", type=int, default=5)

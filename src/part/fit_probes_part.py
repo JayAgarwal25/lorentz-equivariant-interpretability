@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""
-Fit linear probes on ParT representations and plot per-layer scores.
-Optionally overlays with LGATr-full and/or LGATr-slim (TopTagging) for comparison.
+"""Fit linear probes on the saved ParT representations, per layer and target.
 
-Usage:
-  cd path/to/particle_transformer
-  python3.10 fit_probes_part.py \\
-      --part    results/part_interp/probe_data_part.npz \\
-      --lgatr   ../lorentz-gatr/results/probe_data_lgatr.npz \\
-      --slim    ../tagger-quantization/results/probe_data_slim.npz \\
-      --output  results/part_interp/probe_results/
+    python src/part/fit_probes_part.py --part results/probes/part/seed1001/probe_data_part.npz \\
+        --output results/probes/part/seed1001/probe_results
 """
 
 import argparse
@@ -52,7 +45,7 @@ COLORS = {
     "slim":  "#d62728",   # red    — LGATr-slim
 }
 LABELS = {
-    "part":  "ParT (scratch)",
+    "part":  "ParT",
     "lgatr": "LGATr-full",
     "slim":  "LGATr-slim",
 }

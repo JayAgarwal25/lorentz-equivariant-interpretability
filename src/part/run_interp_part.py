@@ -1,32 +1,8 @@
 #!/usr/bin/env python3
-"""
-Combined attention map + linear probe extraction for ParT on TopTagging.
+"""Physics-label helpers and model loading for ParT, plus attention-map extraction.
 
-Runs a single forward pass per jet, capturing:
-  1. Attention weights (8 main blocks × 8 heads × K × K)
-  2. Hidden states (9 layers: embed + 8 blocks) for linear probes
-
-Produces:
-  - <outdir>/probe_data_part.npz   — same key structure as probe_data_slim.npz
-  - <outdir>/avg_attn_all_Njets.png — averaged attention maps (2×4 grid per head)
-  - <outdir>/ptrank_attn.npy/.png  — mean attention received per pT rank
-  - <outdir>/attn_accum.npz        — raw attention sums for offline re-plotting
-  - <outdir>/attn_density.png      — attention score density (off-diagonal)
-
-Token layout: No special tokens. All P tokens are physical particles.
-TOKEN_OFFSET = 0. N_LAYERS = 9 (L0 = after embed, L1..L8 = after each block).
-
-Attention weights are per-head: (N_heads, P, P) per jet, averaged over jets.
-
-Usage:
-  cd path/to/particle_transformer
-  CKPT=training/TopLandscape/ParT/20260418-194812_example_ParticleTransformer_ranger_lr0.001_batch512/net_best_epoch_state.pt
-  CUDA_VISIBLE_DEVICES=1 nohup python3.10 run_interp_part.py \\
-      --checkpoint $CKPT \\
-      --data-path data/toptagging_full.npz \\
-      --outdir results/part_interp/ \\
-      --n-jets 10000 --k 50 \\
-      > logs/part_interp.log 2>&1 &
+run_probes_part_topt.py imports its label helpers (jet mass, N-subjettiness, pT-rank quartile,
+distance to the jet axis) and load_model from here.
 """
 
 import argparse
@@ -763,13 +739,9 @@ def run_wrapper(model, cfg, data_path, n_jets, k, outdir, device):
 
 def main():
     ap = argparse.ArgumentParser()
-    ckpt_default = (
-        "training/TopLandscape/ParT/20260418-194812_example_ParticleTransformer_ranger_lr0.001_batch512"
-        "/net_best_epoch_state.pt"
-    )
-    ap.add_argument("--checkpoint", default=ckpt_default)
+    ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--config", default=None,
-                    help="lloca-experiments config.yaml for wrapper-era ParT checkpoints")
+                    help="lloca-experiments config.yaml of the ParT run")
     ap.add_argument("--data-path",  default="data/toptagging_full.npz")
     ap.add_argument("--outdir",     default="results/part_interp/")
     ap.add_argument("--n-jets",     type=int, default=10000)

@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Small shared helpers for bootstrap and seed-band uncertainty.
-
-The workshop scripts use two different uncertainty notions:
-  1. bootstrap over evaluated jets/events for one fixed checkpoint;
-  2. seed aggregation over independently trained checkpoints.
-Keeping these helpers tiny makes that distinction explicit in every caller.
-"""
+"""Shared helpers for bootstrap intervals over jets and for aggregating independently trained seeds."""
 
 from __future__ import annotations
 

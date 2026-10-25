@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
-"""
-Per-layer equivariance test for LGATr-slim on TopTagging.
+"""Per-layer equivariance test for L-GATr-slim under random Lorentz transforms and a boost sweep.
 
-Same approach as run_equivariance_test.py (full LGATr):
-  - Embed jet once (particles + spurions)
-  - Apply Λ_4x4 directly to ALL 4-vectors in the embedding (so spurions transform too)
-  - Run both original and transformed embedding through model with hooks
-  - Check h_s invariance and h_v equivariance per layer
+The transform is applied to the embedded four-momenta of every token, particles and spurions;
+the tagging features are left unchanged. Records the relative change of h_s, of h_v against
+Lambda h_v, of h_v against no transform (naive), and of the output logit.
 
-h_s : Lorentz-INVARIANT (scalar channels)   → h_s(Λx) == h_s(x)
-h_v : Lorentz-EQUIVARIANT (4-vector channels) → h_v(Λx) == h_v(x) @ Λ_4x4
-
-Usage:
-  cd path/to/tagger-quantization
-  CUDA_VISIBLE_DEVICES=0 /usr/bin/python3.10 -u run_equivariance_test_slim.py \\
-      --n-jets 200 --n-transforms 5 > results/equivariance_slim.log 2>&1
+    python src/lgatr_slim/run_equivariance_test_slim.py --checkpoint $RUNS/topt_lgatr_slim/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr_slim/seed1001/config_0.yaml --data-path $DATA \\
+        --n-jets 200 --n-transforms 5 --n-jets-sweep 50 --seed 1001 \\
+        --output-dir results/equivariance_gamma5/lgatr_slim/seed1001
 """
 
 import os
@@ -328,9 +322,9 @@ def write_summary(err_s, err_v, err_naive, logit_errs,
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint",
-                    default="runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt")
+                    required=True)
     ap.add_argument("--config",
-                    default="runs/lgatr_slim_toptag/slim_run1/config.yaml")
+                    required=True)
     ap.add_argument("--data-path",    default="data/toptagging_full.npz")
     ap.add_argument("--output-dir",   default="results/equivariance_slim")
     ap.add_argument("--n-jets",       type=int, default=200)

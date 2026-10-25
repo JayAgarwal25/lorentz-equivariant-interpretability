@@ -1,38 +1,13 @@
 #!/usr/bin/env python
-"""
-Extract per-layer scalar representations from the full LGATr model for linear probing.
+"""Extract per-layer scalar representations h_s of L-GATr and the physics labels for linear probes.
 
-Registers forward hooks on model.net.linear_in (layer 0) and each of the 12
-GATrBlocks (layers 1-12), capturing the scalar output h_s after each layer.
+Hooks model.net.linear_in (layer 0) and the 12 blocks (layers 1-12). Token layout after the
+wrapper: global token (0, jet-level representation), beam +z, beam -z, time spurion (1-3),
+particles (4 onwards, particle-level representations).
 
-Token layout (full LGATr, token_offset=3):
-  index 0          : global token          → jet-level representation
-  index 1          : xy-plane spurion
-  index 2          : time spurion
-  index 3..3+n-1   : physical particles    → particle-level representations
-
-Saves results/probe_data_lgatr.npz with:
-  jet_reps                (n_layers, n_jets, 32)          float32
-  particle_reps           (n_layers, total_particles, 32) float32
-  particle_jet_idx        (total_particles,)               int32
-  jet_labels              (n_jets,)                        int32
-  jet_mass                (n_jets,)                        float32
-  jet_multiplicity        (n_jets,)                        int32
-  jet_tau1/2/3            (n_jets,)                        float32
-  jet_tau21               (n_jets,)                        float32
-  particle_pt/eta/phi/E   (total_particles,)               float32
-  particle_pt_rank_quartile (total_particles,)             int32
-  particle_dR_to_axis     (total_particles,)               float32
-
-Usage:
-  cd path/to/lorentz-gatr
-  CUDA_VISIBLE_DEVICES=0 nohup venv/bin/python run_probes_lgatr.py \\
-      --checkpoint results/models/topt_GATr_7327_run0_it200000.pt \\
-      --config     runs/topt/GATr_7327/config.yaml \\
-      --data-path  data/toptagging_full.npz \\
-      --output     results/probe_data_lgatr.npz \\
-      --n-jets     10000 \\
-      > results/probe_lgatr.log 2>&1 &
+    python src/lgatr/run_probes_lgatr.py --checkpoint $RUNS/topt_lgatr/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr/seed1001/config.yaml --data-path $DATA --n-jets 10000 \\
+        --output results/probes/lgatr/seed1001/probe_data_lgatr.npz
 """
 
 import argparse
@@ -360,8 +335,8 @@ def extract(model, cfg, data_path, n_jets, device):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--checkpoint", default="results/models/topt_GATr_7327_run0_it200000.pt")
-    ap.add_argument("--config",     default="runs/topt/GATr_7327/config.yaml")
+    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--config",     required=True)
     ap.add_argument("--data-path",  default="data/toptagging_full.npz")
     ap.add_argument("--output",     default="results/probe_data_lgatr.npz")
     ap.add_argument("--n-jets",     type=int, default=10000)

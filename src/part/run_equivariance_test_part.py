@@ -1,33 +1,14 @@
 #!/usr/bin/env python3
-"""
-Per-layer Lorentz invariance test for ParT (ParticleTransformer) on TopTagging.
+"""Per-layer equivariance test for ParT under random Lorentz transforms and a boost sweep.
 
-ParT is NOT Lorentz-equivariant by design — it uses coordinates (eta, phi, pt)
-that transform non-trivially under general Lorentz boosts, and its attention
-mechanism has no equivariance constraints.
+Loads the checkpoint into a weaver ParticleTransformer by renaming its state-dict keys and
+recomputes the input features from the transformed four-momenta of the first 50 particles.
+Records the relative change of the hidden state per layer and of the output logit.
 
-This script measures how much the hidden representations and output logit change
-when we apply a random proper orthochronous Lorentz transformation to the input
-jet 4-momenta (the features are recomputed from the boosted 4-momenta each time).
-
-Metric (per layer):
-  err[l] = ||h_l(Λx) - h_l(x)||_F / (||h_l(x)||_F + ε)
-
-Expected:
-  - err >> 0 for all layers (ParT is not Lorentz-invariant)
-  - Logit change >> LGATr reference (5.61e-3)
-
-No clifford/GA library needed — Lorentz transforms implemented in pure numpy.
-
-Usage:
-  cd path/to/particle_transformer
-  CKPT=training/TopLandscape/ParT/20260418-194812_example_ParticleTransformer_ranger_lr0.001_batch512/net_best_epoch_state.pt
-  CUDA_VISIBLE_DEVICES=1 python3.10 run_equivariance_test_part.py \\
-      --checkpoint $CKPT \\
-      --data-path data/toptagging_full.npz \\
-      --output-dir results/equivariance_part/ \\
-      --n-jets 200 --n-transforms 5 \\
-      > logs/equivariance_part.log 2>&1 &
+    cd path/to/particle_transformer
+    python path/to/src/part/run_equivariance_test_part.py --checkpoint $RUNS/topt_part/seed1001/models/model_run0.pt \\
+        --data-path $DATA --n-jets 200 --n-transforms 5 --n-jets-sweep 50 --seed 1001 \\
+        --output-dir results/equivariance_gamma5/part/seed1001
 """
 
 import argparse
@@ -457,12 +438,7 @@ def write_summary(err_all, logit_errs, gammas, sweep_err, sweep_logit,
 
 def main():
     ap = argparse.ArgumentParser()
-    ckpt_default = (
-        "training/TopLandscape/ParT/"
-        "20260418-194812_example_ParticleTransformer_ranger_lr0.001_batch512/"
-        "net_best_epoch_state.pt"
-    )
-    ap.add_argument("--checkpoint",   default=ckpt_default)
+    ap.add_argument("--checkpoint",   required=True)
     ap.add_argument("--data-path",    default="data/toptagging_full.npz")
     ap.add_argument("--output-dir",   default="results/equivariance_part")
     ap.add_argument("--n-jets",       type=int, default=200)

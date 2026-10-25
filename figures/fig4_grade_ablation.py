@@ -122,4 +122,4 @@ ax_r.annotate(r"All grades $\to 0$ at L12" + "\n(architectural constraint)",
 fig.tight_layout(pad=0.5, w_pad=1.2)
 fig.savefig(OUT / "fig4_grade_decomp.pdf", bbox_inches="tight")
 fig.savefig(OUT / "fig4_grade_decomp.png", dpi=150, bbox_inches="tight")
-print(f"Saved: {OUT}/fig3_grade_decomp.{{pdf,png}}")
+print(f"Saved: {OUT}/fig4_grade_decomp.{{pdf,png}}")

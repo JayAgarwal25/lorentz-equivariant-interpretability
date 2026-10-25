@@ -1,44 +1,15 @@
 #!/usr/bin/env python3
-"""
-Per-layer equivariance test for LGATr and LGATr-slim on TopTagging.
+"""Per-layer equivariance test for L-GATr under random Lorentz transforms and a boost sweep.
 
-Tests the numerical equivariance of internal representations under random proper
-orthochronous Lorentz transformations (boosts + rotations, i.e. Spin(1,3) elements).
+The transform is applied to the embedded multivectors of every token, particles and spurions;
+the scalar inputs are left unchanged. Records the relative change of h_s, of h_mv against
+rho(Lambda) h_mv, of h_mv against no transform (naive), and of the output logit.
 
-Architecture guarantees:
-  h_s — Lorentz INVARIANT (scalar channels, trivial representation)
-        Expected: h_s(Λx) == h_s(x),  relative error ~ float32 machine precision (~1e-6)
-
-  h_mv — Lorentz EQUIVARIANT (multivector channels, Pin(1,3) representation)
-         Expected: h_mv(Λx) == ρ(Λ) · h_mv(x)
-
-  h_v  — Lorentz EQUIVARIANT (LGATr-slim, 4-vector channels)
-         Expected: h_v(Λx) == Λ_4x4 · h_v(x)
-
-Equivariance error metric (per layer, per jet):
-  err_s  = ||h_s(Λx) - h_s(x)||_F  / (||h_s(x)||_F + ε)   [invariance check]
-  err_mv = ||h_mv(Λx) - ρ(Λ)·h_mv(x)||_F / (||h_mv(x)||_F + ε)
-  err_v  = ||h_v(Λx) - Λ_4x4·h_v(x)||_F / (||h_v(x)||_F + ε)
-
-ρ(Λ) is computed by applying the Pin sandwich product to the standard 16 basis
-multivectors (a 16×16 matrix).  The 4×4 Lorentz matrix Λ_4x4 is extracted from
-the grade-1 block of ρ(Λ).
-
-Multiple transforms are tested (N_TRANSFORMS boosts/rotations/combined) to
-ensure results are not transform-specific.
-
-Outputs (--output-dir, default results/equivariance/):
-  equivariance_errors.npz      per-layer mean errors for all models and metrics
-  equivariance_lgatr.png       line plot: err_s, err_mv per layer for full LGATr
-  equivariance_slim.png        line plot: err_s, err_v per layer for slim
-  equivariance_summary.txt     human-readable summary
-
-Usage:
-  cd path/to/lorentz-gatr
-  CUDA_VISIBLE_DEVICES=0 venv/bin/python -u run_equivariance_test.py \\
-      --n-jets       200 \\
-      --n-transforms 5  \\
-      > results/equivariance.log 2>&1
+    cd path/to/lorentz-gatr    # its experiments package provides embed_tagging_data_into_ga
+    python path/to/src/lgatr/run_equivariance_test.py --lgatr-checkpoint $RUNS/topt_lgatr/seed1001/models/model_run0.pt \\
+        --lgatr-config $RUNS/topt_lgatr/seed1001/config_0.yaml --data-path $DATA \\
+        --n-jets 200 --n-transforms 5 --n-jets-sweep 50 --seed 1001 \\
+        --output-dir results/equivariance_gamma5/lgatr/seed1001
 """
 
 import sys
@@ -52,7 +23,6 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from omegaconf import OmegaConf
 from torch_geometric.loader import DataLoader
-from sklearn.metrics import roc_auc_score
 
 sys.path.insert(0, ".")
 
@@ -76,10 +46,7 @@ def sample_lorentz_transform(rng=None):
       Lambda_4x4 : (4,4) float32 numpy array — Lorentz matrix in (E,px,py,pz) basis
                    p' = p @ Lambda_4x4.T  (acts on row vectors)
     """
-    import clifford
-    from gatr.utils.clifford import (
-        LAYOUT, BLADES, sample_pin_multivector, sandwich, np_to_mv
-    )
+    from gatr.utils.clifford import sample_pin_multivector, sandwich, np_to_mv
 
     if rng is None:
         rng = np.random.default_rng()
@@ -487,9 +454,9 @@ def write_summary(lgatr_s, lgatr_mv, lgatr_naive, logit_errs,
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--lgatr-checkpoint",
-                    default="results/models/topt_GATr_7327_run0_it200000.pt")
+                    required=True)
     ap.add_argument("--lgatr-config",
-                    default="runs/topt/GATr_7327/config.yaml")
+                    required=True)
     ap.add_argument("--data-path",    default="data/toptagging_full.npz")
     ap.add_argument("--output-dir",   default="results/equivariance")
     ap.add_argument("--n-jets",       type=int, default=200)
@@ -526,7 +493,7 @@ def main():
     )
     print(f"  Mean logit invariance error: {logit_errs.mean():.2e}")
 
-    # ── Boost sweep (option 4) ────────────────────────────────────────────────
+    # ── Boost sweep ────────────────────────────────────────────────
     print(f"\n{'='*60}\nBoost sweep γ={GAMMAS} ({args.n_jets_sweep} jets each)...")
     sweep_mv, sweep_s, sweep_logit = test_boost_sweep(
         model_lgatr, cfg_lgatr, ds, GAMMAS,

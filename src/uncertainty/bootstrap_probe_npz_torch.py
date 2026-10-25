@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Torch/GPU bootstrap linear probes for shared TopTagging representation NPZs.
+"""Bootstrap the linear probes of one probe-data file on the GPU (Ridge and logistic regression in torch).
 
-This is the faster production path for probe uncertainty. It keeps the same
-input schema as `bootstrap_probe_npz.py`, but uses torch linear algebra for
-Ridge and torch LBFGS for logistic probes.
+Each draw fits every probe at every layer on jets resampled with replacement and scores it on the
+out-of-bag jets.
+
+    python src/uncertainty/bootstrap_probe_npz_torch.py --input results/probes/lgatr/seed1001/probe_data_lgatr.npz \\
+        --output-dir results/probes/lgatr/seed1001/bootstrap_torch --n-bootstrap 200 --seed 1001 \\
+        --max-train-particles 150000 --max-test-particles 150000 --lbfgs-max-iter 100
 """
 
 import argparse

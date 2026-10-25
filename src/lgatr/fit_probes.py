@@ -1,22 +1,14 @@
 #!/usr/bin/env python
-"""
-Fit linear probes on saved LGATr / LGATr-slim representations and plot
-per-layer R² / AUC curves for all probe targets.
+"""Fit linear probes on the saved h_s of L-GATr and L-GATr-slim, per layer and target.
 
-For every (model, layer, target) combination:
-  - regression targets  → Ridge regression, metric = R²
-  - binary classification (top/QCD) → LogisticRegression, metric = AUC
-  - 4-class classification (pT quartile) → LogisticRegression, metric = accuracy
+Regression targets use Ridge (alpha = 1) and R^2; top/QCD uses logistic regression and AUC; the
+pT-rank quartile uses logistic regression and accuracy. Train and test jets are split 80/20,
+particle targets follow their jet.
 
-Train / test split is done at the *jet* level (80 / 20) to avoid leakage
-in particle-level probes.
-
-Usage:
-  cd path/to/lorentz-gatr
-  venv/bin/python fit_probes.py \\
-      --lgatr results/probe_data_lgatr.npz \\
-      --slim  ../tagger-quantization/results/probe_data_slim.npz \\
-      --output results/probe_results/
+    python src/lgatr/fit_probes.py --lgatr results/probes/lgatr/seed1001/probe_data_lgatr.npz \\
+        --slim results/probes/lgatr_slim/seed1001/probe_data_slim.npz \\
+        --lgatr-output results/probes/lgatr/seed1001/probe_results \\
+        --slim-output results/probes/lgatr_slim/seed1001/probe_results --output results/probes/lgatr_family/seed1001
 """
 
 import argparse

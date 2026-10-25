@@ -1,31 +1,12 @@
 #!/usr/bin/env python
-"""
-Compute 832 Lorentz-invariant scalar features from h_mv representations.
+"""Compute the 832 Lorentz-invariant features per token from L-GATr's h_mv.
 
-Each multivector token has shape (16 channels, 16 blade components).
-Features are invariant under the Lorentz group SO+(1,3) by construction.
+Features (16 channels): 16 grade-0 and 16 grade-4 components, 136 grade-1 and 136 grade-3 pair
+inner products, 256 grade-1 x dualized grade-3 cross terms, 136 + 136 grade-2 scalar and
+pseudoscalar invariants. Inner products use <X~Y>_0 with the Cl(1,3) metric (+,-,-,-).
 
-Feature recipe (832 total per token):
-  16   direct grade-0 (scalars):        h_mv[:, i, 0]
-  16   direct grade-4 (pseudoscalars):  h_mv[:, i, 15]
-  136  grade-1 pairs (symmetric):       ⟨Ṽ_i V_j⟩₀  = Minkowski inner product
-  136  grade-3 pairs (symmetric):       ⟨T̃_i T_j⟩₀  = inner product of grade-3 channels
-  256  cross-grade (asymmetric):        v_i · ŵ_j    = grade-1 ch_i · dualized grade-3 ch_j
-  136  grade-2 scalar (symmetric):      ⟨B̃_i B_j⟩₀  = E²−B² analog
-  136  grade-2 pseudoscalar (symm):     ⟨B_i B_j⟩₄  = E·B analog (parity-odd)
-  ---
-  832
-
-Grade-2 pseudoscalar ⟨B_i B_j⟩₄ uses the full geometric product (grade-4 projection).
-Dualization: grade-3 trivector T → grade-1 vector ŵ = T · I via geometric product.
-
-All inner products use the ⟨X̃Y⟩₀ formula with metric factors from Cl(1,3) (+−−−).
-
-Usage:
-  cd path/to/lorentz-gatr
-  venv/bin/python compute_mv_invariants.py \\
-      --input   results/probe_data_lgatr_mv.npz \\
-      --output  results/probe_data_lgatr_mv_invariants.npz
+    python src/lgatr/compute_mv_invariants.py --input results/probes/lgatr/seed1001/probe_data_lgatr_mv.npz \\
+        --output results/probes/lgatr/seed1001/probe_data_lgatr_mv_invariants.npz
 """
 
 import argparse
@@ -151,9 +132,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input",  default="results/probe_data_lgatr_mv.npz")
     ap.add_argument("--output", default="results/probe_data_lgatr_mv_invariants.npz")
-    ap.add_argument("--skip-particles", action="store_true", default=True,
-                    help="Skip particle-level invariants (saves ~18 GB). Default True.")
-    ap.add_argument("--include-particles", dest="skip_particles", action="store_false")
+    ap.add_argument("--include-particles", dest="skip_particles", action="store_false",
+                    help="Also compute particle-level invariants (about 18 GB); skipped by default.")
     args = ap.parse_args()
 
     t0 = time.time()

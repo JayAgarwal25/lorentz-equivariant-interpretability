@@ -37,19 +37,6 @@ YLIMS = {
 }
 
 
-def load_seed_scores(model_key: str, target: str) -> np.ndarray:
-    """Load per-seed probe score arrays; shape (n_seeds, n_layers)."""
-    seed_dirs = sorted(
-        d for d in (PROBES / model_key).iterdir()
-        if d.is_dir() and d.name.startswith("seed")
-    )
-    arrays = []
-    for sd in seed_dirs:
-        f = np.load(sd / "probe_results" / "probe_scores.npz")
-        arrays.append(f[target])
-    return np.stack(arrays, axis=0)  # (n_seeds, n_layers)
-
-
 def load_combined_ci(model_key: str, target: str):
     """Load combined bootstrap CI (median, lo, hi); each shape (n_layers,)."""
     f = np.load(PROBES / model_key / "combined_bootstrap_ci.npz")

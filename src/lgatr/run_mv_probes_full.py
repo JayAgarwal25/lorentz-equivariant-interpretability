@@ -1,16 +1,16 @@
 #!/usr/bin/env python
-"""
-Full mv probe analysis: all 13 targets (7 jet + 6 particle), all grade groups, all layers.
+"""Fit the invariant probes for all 14 targets, grade groups and layers of L-GATr.
 
-Particle invariants computed on-the-fly per layer from part_mv (50k random sample).
-All plots saved as PNG in one output folder.
+Jet-level probes use the first --n-train-jet jets for training and the next --n-test-jet for
+testing; particle invariants are computed per layer for a sorted sample of particles, so the
+split is by jet. Ridge alpha = 10 and logistic C = 0.1. The h_s reference is refit here on the
+same split.
 
-Usage:
-  python run_mv_probes_full.py \
-      --inv-data  <path>/probe_data_lgatr_mv_invariants.npz \
-      --mv-data   <path>/probe_data_lgatr_mv.npz \
-      --scalar-data <path>/probe_data_lgatr.npz \
-      --output-dir  <path>/mv_probe_results
+    python src/lgatr/run_mv_probes_full.py \\
+        --inv-data results/probes/lgatr/seed1001/probe_data_lgatr_mv_invariants.npz \\
+        --mv-data results/probes/lgatr/seed1001/probe_data_lgatr_mv.npz \\
+        --scalar-data results/probes/lgatr/seed1001/probe_data_lgatr.npz \\
+        --output-dir results/probes/lgatr/seed1001/mv_probe_results
 """
 
 import argparse, json, time, warnings, sys
@@ -156,7 +156,7 @@ def save(fig, name):
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
-OUT_DIR.mkdir(exist_ok=True)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 t0 = time.time()
 
 print("Building invariant matrices...")

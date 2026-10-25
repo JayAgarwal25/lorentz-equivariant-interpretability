@@ -1,32 +1,15 @@
 #!/usr/bin/env python3
-"""
-Extended interpretation for LLoCa-Transformer on TopTagging test set.
+"""Attention maps, pT-rank attention and layer CKA for LLoCa-T.
 
-Computes two analyses from a batched-but-single-jet forward pass:
-  1. CKA similarity matrix (13×13, layers 0..12) — linear CKA between
-     mean physical-token representations at every layer.
-  2. pT-rank attention — mean attention weight received by each pT rank
-     (0=highest), compared Top vs QCD (last block, global frame).
+The backbone sees only the particles (the spurions are used for the local frames), so there is no
+spurion attention. CKA uses the mean particle representation of --n-cka jets.
 
-Note: unlike LGATr/LGATr-slim, the LLoCa-Transformer does NOT have
-explicit spurion tokens inside the network — spurions are used only for
-frame pre-computation and stripped out before the backbone sees the data.
-Therefore no spurion-attention analysis is produced here.
-
-Token layout inside model.net (after TaggerWrapper removes spurions):
-  [phys_0(0), phys_1(1), ...] — pT-ordered physical particles only.
-  N_SPECIAL = 0; the backbone only sees physical particles.
-
-CKA representation: mean of all n_phys token h-vectors per jet per layer.
-
-Output (--output-dir):
-  cka_lloca_transformer.npy / cka_lloca_transformer.png
-  ptrank_attn_lloca_transformer.npz / ptrank_attn_lloca_transformer.png
+    python src/transformer/run_extended_interp_lloca_transformer.py --checkpoint $RUNS/topt_lloca_transformer/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lloca_transformer/seed1001/config.yaml --data-path $DATA --n-jets 10000 \\
+        --batch-size 64 --output-dir results/interp/lloca_transformer/seed1001
 """
 
 import argparse
-import sys
-import os
 import time
 import numpy as np
 import torch
@@ -139,7 +122,7 @@ def plot_ptrank(top_list, qcd_list, title, save_path):
 
 
 def plot_averaged_attention_grid(avg_attn, n_events, label="", title_prefix="LLoCa-Transformer", save_path=None):
-    """IAFormer Figure 4 style: one heatmap per attention head, averaged over n_events jets."""
+    """One heatmap per attention head, averaged over n_events jets."""
     num_heads = avg_attn.shape[0]
     ncols = 4
     nrows = (num_heads + ncols - 1) // ncols

@@ -1,28 +1,11 @@
 #!/usr/bin/env python
-"""
-Extract per-layer scalar representations from LGATr-slim for linear probing.
+"""Extract per-layer scalar representations h_s of L-GATr-slim and the physics labels for linear probes.
 
-Registers forward hooks on model.net.linear_in (layer 0) and each of the 12
-LGATrSlimBlocks (layers 1-12), capturing the scalar output h_s after each layer.
+Same hooks, token layout (particles start at token 4) and output keys as run_probes_lgatr.py.
 
-Token layout inside model.net after LGATrSlimWrapper inserts the global token:
-  index 0          : global token             → jet-level representation
-  index 1          : lightlike spurion +z
-  index 2          : lightlike spurion -z
-  index 3          : time spurion
-  index 4..4+n-1   : physical particles       → particle-level representations
-
-Saves results/probe_data_slim.npz with identical key structure to probe_data_lgatr.npz.
-
-Usage:
-  cd path/to/tagger-quantization
-  CUDA_VISIBLE_DEVICES=1 nohup python3.10 run_probes_slim.py \\
-      --checkpoint runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt \\
-      --config     runs/lgatr_slim_toptag/slim_run1/config.yaml \\
-      --data-path  data/toptagging_full.npz \\
-      --output     results/probe_data_slim.npz \\
-      --n-jets     10000 \\
-      > results/probe_slim.log 2>&1 &
+    python src/lgatr_slim/run_probes_slim.py --checkpoint $RUNS/topt_lgatr_slim/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_lgatr_slim/seed1001/config.yaml --data-path $DATA --n-jets 10000 \\
+        --output results/probes/lgatr_slim/seed1001/probe_data_slim.npz
 """
 
 import argparse
@@ -326,8 +309,8 @@ def extract(model, cfg, data_path, n_jets, device):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--checkpoint", default="runs/lgatr_slim_toptag/slim_run1/models/model_run0.pt")
-    ap.add_argument("--config",     default="runs/lgatr_slim_toptag/slim_run1/config.yaml")
+    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--config",     required=True)
     ap.add_argument("--data-path",  default="data/toptagging_full.npz")
     ap.add_argument("--output",     default="results/probe_data_slim.npz")
     ap.add_argument("--n-jets",     type=int, default=10000)

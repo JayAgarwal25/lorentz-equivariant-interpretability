@@ -1,27 +1,12 @@
 #!/usr/bin/env python3
-"""
-Compute combined bootstrap CIs for all four analyses.
+"""Pool the per-seed bootstrap draws of the three seeds into one distribution and take 95% intervals.
 
-Method:
-  For each analysis, pool all bootstrap draws across 3 independent training seeds
-  into a single distribution, then take percentile CIs. This captures both
-  within-seed sampling noise (bootstrap) and between-seed training variance
-  simultaneously, giving the total uncertainty.
+Analyses: probes (h_s probes, all five models, 3 x 200 draws), equivariance (3 x 1000 draws),
+grades (grade ablations recomputed from the per-jet logits, 3 x 1000 draws) and mv (L-GATr
+invariant probes, 3 x 200 draws). Writes combined_bootstrap_ci.npz (combined_mv_bootstrap_ci.npz
+for mv) next to the seed folders, with keys <name>__median, __lo, __hi, __mean, __std, __n_draws.
 
-CI level: 2.5th/97.5th percentile (95%).
-Format:   median_{-diff_lo}^{+diff_hi}.
-
-Output files (one per model/variant):
-  results/.../combined_bootstrap_ci.npz
-  Keys: {intervention}__median, __lo, __hi, __mean, __std
-        plus __n_draws (number of pooled draws, for verification)
-
-Analyses covered:
-  1. Probes h_s  — all 5 models, pool 3×200 draws per layer
-  2. Equivariance — all 5 models, pool 3×1000 draws
-  3. Grade decomp — lgatr / lgatr_bivector_false / lgatr_subgroup_false / lgatr_slim
-                    recomputed from raw scores (1000 draws per seed, pool 3000)
-  4. probe_mv     — lgatr only (only model with multivector repr), pool 3×200 draws per layer
+    python src/uncertainty/compute_combined_bootstrap_ci.py --only probes grades mv
 """
 
 import sys
@@ -88,19 +73,10 @@ def run_probes_hs():
 
 # ── 2. Equivariance ───────────────────────────────────────────────────────────
 # Raw arrays: (1000,) logit_errs and (1000, 5) sweep arrays per seed
-# lgatr/slim: seed{s}/bootstrap/ structure
-# others:     bootstrap/ (seed1001) + seed1002/bootstrap/ + seed1003/bootstrap/
 
 def _equivariance_paths(model: str) -> list[Path]:
     base = RESULTS / "equivariance" / model
-    if model in ("lgatr", "lgatr_slim"):
-        return [base / f"seed{s}" / "bootstrap" / "equivariance_bootstrap_raw.npz" for s in SEEDS]
-    else:
-        return [
-            base / "bootstrap" / "equivariance_bootstrap_raw.npz",
-            base / "seed1002" / "bootstrap" / "equivariance_bootstrap_raw.npz",
-            base / "seed1003" / "bootstrap" / "equivariance_bootstrap_raw.npz",
-        ]
+    return [base / f"seed{s}" / "bootstrap" / "equivariance_bootstrap_raw.npz" for s in SEEDS]
 
 
 def run_equivariance():
@@ -223,23 +199,32 @@ def run_probe_mv():
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    ap.add_argument("--only", nargs="+", choices=["probes", "equivariance", "grades", "mv"],
+                    default=["probes", "equivariance", "grades", "mv"])
+    only = ap.parse_args().only
+
     print("Computing combined bootstrap CIs")
     print(f"  CI level: {CI_LO}th–{CI_HI}th percentile (95%)")
     print(f"  Seeds: {SEEDS}")
     print(f"  Grade bootstrap draws per seed: {N_BOOTSTRAP_GRADE}")
 
-    run_probes_hs()
-    run_equivariance()
+    if "probes" in only:
+        run_probes_hs()
+    if "equivariance" in only:
+        run_equivariance()
+    if "grades" in only:
+        if HAS_SKLEARN:
+            run_grade_decomp()
+        else:
+            print("\n=== 3. Grade decomp — SKIPPED (sklearn not available) ===")
+            print("  Install with: pip install scikit-learn")
+    if "mv" in only:
+        run_probe_mv()
 
-    if HAS_SKLEARN:
-        run_grade_decomp()
-    else:
-        print("\n=== 3. Grade decomp — SKIPPED (sklearn not available) ===")
-        print("  Install with: pip install scikit-learn")
-
-    run_probe_mv()
-
-    print("\nDone. All combined_bootstrap_ci.npz files written.")
+    print("\nDone.")
     print("CI format for tables: median_{-diff_lo}^{+diff_hi}")
     print("  diff_lo = median - lo  (downward uncertainty)")
     print("  diff_hi = hi - median  (upward uncertainty)")

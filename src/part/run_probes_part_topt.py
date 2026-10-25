@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-"""Dedicated TopTagging probe extraction for ParT.
+"""Extract per-layer representations of ParT and the physics labels for linear probes.
 
-This is the probe-only counterpart to ``run_interp_part.py``. It uses the
-wrapper-era ``lloca-experiments`` ParT checkpoint/config path, extracts:
+Saves particle-token states after the embedding and each of the 8 particle blocks, and jet-level
+states: mean-pooled tokens, the class-token states and the final normalized class token, which
+is the representation closest to the logit.
 
-- particle-token representations after embed + each particle block
-- jet-level representations from:
-  - mean-pooled particle tokens after embed + each particle block
-  - class-token states after each cls block
-  - final normalized class-token state before the FC head
-
-The final normalized class-token state is the representation closest to the
-actual classifier logits, so this script is the right extraction path for the
-TopTagging linear probes.
+    cd path/to/particle_transformer
+    python path/to/src/part/run_probes_part_topt.py --checkpoint $RUNS/topt_part/seed1001/models/model_run0.pt \\
+        --config $RUNS/topt_part/seed1001/config.yaml --data-path $DATA --n-jets 10000 --k-store 50 \\
+        --output results/probes/part/seed1001/probe_data_part.npz
 """
 
 import argparse
@@ -277,7 +273,7 @@ def main():
     print(f"Device: {device}")
     model, cfg, use_wrapper = load_model(args.checkpoint, device, config_path=args.config)
     if not use_wrapper or cfg is None:
-        raise RuntimeError("run_probes_part_topt.py requires a wrapper-era config/checkpoint pair")
+        raise RuntimeError("run_probes_part_topt.py needs --config with the lloca-experiments run config")
 
     extract_probe_data(
         model,
